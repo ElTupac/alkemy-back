@@ -139,7 +139,9 @@ const loginUser = (req, res) => {
         if(result.rowCount){
             const hashed = result.rows[0].password;
             const username = result.rows[0].name;
+            console.log(result.rows);
             bcrypt.compare(password, hashed, (err, result) => {
+                console.log(err);
                 if(result) {
                     const token = generateToken(email, username);
                     if(token){
@@ -157,21 +159,26 @@ const loginUser = (req, res) => {
 
 const registerUser = (req, res) => {
     const { email, name, password } = req.body;
+    console.log(email, name, password);
     if(!email || !name || !password) return res.status(400).json({ok: false, error: 'NOT ENOUGH PROPERTIES'});
     pool.query('SELECT name, email FROM users WHERE email = $1', [email], (error, results) => {
         if(!results.rowCount){
-            bcrypt.hash(password, ROUND_SALTS, (err, hash) => {
-                if(hash){
-                    pool.query('INSERT INTO users (name, email, password) VALUES ($1, $2, $3)', [name, email, hash], (err, result) => {
-                        if(err){
-                            return res.status(500).json({ok: false, error: 'USER NOT CREATED'});
-                        }else{
-                            return res.status(201).json({ok: true, user: {email, name}});
-                        }
-                    })
-                }else{
-                    return res.status(500).json({ok: false, error: 'USER NOT CREATED'});
-                }
+            bcrypt.genSalt(10, (err, salt) => {
+                bcrypt.hash(password, salt, (err, hash) => {
+                    console.log(salt, ROUND_SALTS);
+                    if(hash){
+                        pool.query('INSERT INTO users (name, email, password) VALUES ($1, $2, $3)', [name, email, hash], (err, result) => {
+                            console.log(err);
+                            if(err){
+                                return res.status(500).json({ok: false, error: 'USER NOT CREATED'});
+                            }else{
+                                return res.status(201).json({ok: true, user: {email, name}});
+                            }
+                        })
+                    }else{
+                        return res.status(500).json({ok: false, error: 'USER NOT CREATED'});
+                    }
+                })
             })
         }else{
             return res.status(400).json({ok: false, error: 'EMAIL USED'});
